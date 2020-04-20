@@ -340,6 +340,10 @@
       <default>'#aaf5d0'</default>
       <summary>Color of cache memory in the chart</summary>
     </key>
+    <key name="memory-arcsize-color" type="s">
+      <default>'#aa00d0'</default>
+      <summary>Color of ZFS memory in the chart</summary>
+    </key>
     <key name="net-down-color" type="s">
       <default>'#fce94f'</default>
       <summary>Color of download speed in the chart</summary>

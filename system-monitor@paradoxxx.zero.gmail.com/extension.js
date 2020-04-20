@@ -1597,12 +1597,12 @@ const Mem = class SystemMonitor_Mem extends ElementBase {
         super({
             elt: 'memory',
             item_name: _('Memory'),
-            color_name: ['program', 'buffer', 'cache']
+            color_name: ['program', 'buffer', 'cache', 'arcsize']
         });
         this.max = 1;
 
         this.gtop = new GTop.glibtop_mem();
-        this.mem = [0, 0, 0];
+        this.mem = [0, 0, 0, 0];
 
         GTop.glibtop_get_mem(this.gtop);
         this.total = Math.round(this.gtop.total / 1024 / 1024);
@@ -1619,22 +1619,42 @@ const Mem = class SystemMonitor_Mem extends ElementBase {
         this.update();
     }
     refresh() {
-        GTop.glibtop_get_mem(this.gtop);
-        if (this.useGiB) {
-            this.mem[0] = Math.round(this.gtop.user / this._unitConversion);
-            this.mem[0] /= this._decimals;
-            this.mem[1] = Math.round(this.gtop.buffer / this._unitConversion);
-            this.mem[1] /= this._decimals;
-            this.mem[2] = Math.round(this.gtop.cached / this._unitConversion);
-            this.mem[2] /= this._decimals;
-            this.total = Math.round(this.gtop.total / this._unitConversion);
-            this.total /= this._decimals;
-        } else {
-            this.mem[0] = Math.round(this.gtop.user / this._unitConversion);
-            this.mem[1] = Math.round(this.gtop.buffer / this._unitConversion);
-            this.mem[2] = Math.round(this.gtop.cached / this._unitConversion);
-            this.total = Math.round(this.gtop.total / this._unitConversion);
-        }
+        let file = Gio.file_new_for_path('/proc/spl/kstat/zfs/arcstats');
+        file.load_contents_async(null, (source, result) => {
+            let arcsize = 0;
+            let as_r = source.load_contents_finish(result);
+            let lines = String(as_r[1]).split('\n');
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                let entry = line.trim().split(/[\s]+/);
+                if (entry[0] === 'size') {
+                    arcsize = parseInt(entry[2]);
+                }
+            }
+
+            GTop.glibtop_get_mem(this.gtop);
+            this.gtop.user -= arcsize;
+
+            if (this.useGiB) {
+                this.mem[0] = Math.round(this.gtop.user / this._unitConversion);
+                this.mem[0] /= this._decimals;
+                this.mem[1] = Math.round(this.gtop.buffer / this._unitConversion);
+                this.mem[1] /= this._decimals;
+                this.mem[2] = Math.round(this.gtop.cached / this._unitConversion);
+                this.mem[2] /= this._decimals;
+                this.mem[3] = Math.round(arcsize / this._unitConversion);
+                this.mem[3] /= this._decimals;
+                this.total = Math.round(this.gtop.total / this._unitConversion);
+                this.total /= this._decimals;
+            } else {
+                this.mem[0] = Math.round(this.gtop.user / this._unitConversion);
+                this.mem[1] = Math.round(this.gtop.buffer / this._unitConversion);
+                this.mem[2] = Math.round(this.gtop.cached / this._unitConversion);
+                this.mem[3] = Math.round(arcsize / this._unitConversion);
+                this.total = Math.round(this.gtop.total / this._unitConversion);
+            }
+        });
     }
     _pad(number) {
         if (this.useGiB) {
@@ -1650,9 +1670,9 @@ const Mem = class SystemMonitor_Mem extends ElementBase {
     }
     _apply() {
         if (this.total === 0) {
-            this.vals = this.tip_vals = [0, 0, 0];
+            this.vals = this.tip_vals = [0, 0, 0, 0];
         } else {
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < 4; i++) {
                 this.vals[i] = this.mem[i] / this.total;
                 this.tip_vals[i] = Math.round(this.vals[i] * 100);
             }

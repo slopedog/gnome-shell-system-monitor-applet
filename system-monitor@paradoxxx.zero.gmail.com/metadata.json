@@ -6,5 +6,5 @@
     "description": "Display system informations in gnome shell status bar, such as memory usage, cpu usage, network rates…",
     "settings-schema":  "org.gnome.shell.extensions.system-monitor",
     "gettext-domain": "system-monitor",
-    "version": -1
+    "version": "39"
 }
